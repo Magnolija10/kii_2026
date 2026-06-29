@@ -2,3 +2,7 @@ db.sqlite3
 .idea/
 media/
 db/
+.env
+static_root/
+__pycache__/
+*.pyc

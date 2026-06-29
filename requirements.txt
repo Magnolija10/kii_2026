@@ -184,3 +184,7 @@ yarl==1.20.1
 zipp==3.23.0
 zope.interface==7.2
 zstandard==0.23.0
+
+# --- Added for containerized deployment (KIIIE project) ---
+psycopg[binary]==3.2.9
+whitenoise==6.9.0

@@ -10,22 +10,37 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def env_bool(name, default=False):
+    return os.environ.get(name, str(default)).lower() in ("1", "true", "yes", "on")
+
+
+def env_list(name, default=""):
+    raw = os.environ.get(name, default)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-*x!p987_dl(5)txg$$pxdqbn5-(zupp-0bxd*y11@i1k0rb3p@'
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-*x!p987_dl(5)txg$$pxdqbn5-(zupp-0bxd*y11@i1k0rb3p@",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool("DJANGO_DEBUG", default=True)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", default="localhost,127.0.0.1")
+
+CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
 
 # Application definition
@@ -49,12 +64,22 @@ INSTALLED_APPS = [
 
 ASGI_APPLICATION = "LMSProject.asgi.application"  # adjust to your project name
 
-CHANNEL_LAYERS = {
-    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
-}
+REDIS_URL = os.environ.get("REDIS_URL")
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+    }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -90,12 +115,27 @@ WSGI_APPLICATION = 'LMSProject.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Use PostgreSQL when POSTGRES_DB is configured (containers / k8s),
+# otherwise fall back to local SQLite for quick development.
+if os.environ.get("POSTGRES_DB"):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ["POSTGRES_DB"],
+            'USER': os.environ.get("POSTGRES_USER", "lms"),
+            'PASSWORD': os.environ.get("POSTGRES_PASSWORD", ""),
+            'HOST': os.environ.get("POSTGRES_HOST", "db"),
+            'PORT': os.environ.get("POSTGRES_PORT", "5432"),
+            'CONN_MAX_AGE': int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -140,6 +180,14 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = BASE_DIR / 'static_root'
 
+# Compressed, hashed static files served directly by the app container.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
 MEDIA_URL   = '/media/'
 MEDIA_ROOT  = BASE_DIR / 'media'
 
@@ -148,8 +196,9 @@ AI_DB_DIR = BASE_DIR / "db" / "courses"
 AI_DB_DIR.mkdir(parents=True, exist_ok=True)
 
 # Ollama settings (adjust model names if you prefer others)
-OLLAMA_LLM_MODEL = "llama3"
-OLLAMA_EMBED_MODEL = "nomic-embed-text"
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_LLM_MODEL = os.environ.get("OLLAMA_LLM_MODEL", "llama3")
+OLLAMA_EMBED_MODEL = os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

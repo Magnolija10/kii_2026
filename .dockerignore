@@ -1,0 +1,23 @@
+# Version control / IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# Python caches
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Local dev artifacts that must NOT leak into the image
+db.sqlite3
+db/
+media/
+static_root/
+.env
+*.log
+
+# Docker / k8s manifests are not needed inside the image
+docker-compose*.yml
+k8s/
