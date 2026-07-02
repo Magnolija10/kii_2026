@@ -1,0 +1,17 @@
+# Stable in-cluster endpoint for the web pods. The Ingress routes to it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: lms-web
+  namespace: lms
+  labels:
+    app.kubernetes.io/name: lms-web
+    app.kubernetes.io/part-of: lms-platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lms-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000

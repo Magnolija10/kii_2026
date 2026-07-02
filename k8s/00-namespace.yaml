@@ -1,0 +1,8 @@
+# Dedicated namespace so all LMS resources are isolated from the rest
+# of the cluster (required deliverable: deploy into a separate namespace).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lms
+  labels:
+    app.kubernetes.io/part-of: lms-platform

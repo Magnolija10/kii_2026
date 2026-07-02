@@ -1,0 +1,61 @@
+# The Django/Channels application (ASGI, served by daphne).
+# The image is the one published by the CI pipeline to Docker Hub.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lms-web
+  namespace: lms
+  labels:
+    app.kubernetes.io/name: lms-web
+    app.kubernetes.io/part-of: lms-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lms-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lms-web
+        app.kubernetes.io/part-of: lms-platform
+    spec:
+      containers:
+        - name: web
+          image: magnolija/lmsproject:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: web-config
+            - secretRef:
+                name: web-secret
+            - secretRef:
+                name: postgres-secret   # provides POSTGRES_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: lms.local
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: lms.local
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "384Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

@@ -1,0 +1,25 @@
+# Exposes the app outside the cluster at http://lms.local
+# (via the minikube nginx ingress addon).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lms-web
+  namespace: lms
+  labels:
+    app.kubernetes.io/name: lms-web
+    app.kubernetes.io/part-of: lms-platform
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: lms.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lms-web
+                port:
+                  number: 80

@@ -1,0 +1,109 @@
+# PostgreSQL database, run as a StatefulSet so it keeps a stable network
+# identity and a persistent volume across restarts.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: lms
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: lms-platform
+data:
+  POSTGRES_DB: lms
+  POSTGRES_USER: lms
+  # Store data in a sub-directory of the mount so an empty PVC (with its
+  # lost+found) does not confuse the postgres init process.
+  PGDATA: /var/lib/postgresql/data/pgdata
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: lms
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: lms-platform
+type: Opaque
+stringData:
+  # Demo value — change before any real deployment.
+  POSTGRES_PASSWORD: lms_db_pass_2026
+---
+# Headless service: gives the pod a stable DNS name (postgres-0.postgres)
+# and lets the app reach the DB via the "postgres" name.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: lms
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: lms-platform
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: lms
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: lms-platform
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: lms-platform
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          envFrom:
+            - configMapRef:
+                name: postgres-config
+            - secretRef:
+                name: postgres-secret
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
