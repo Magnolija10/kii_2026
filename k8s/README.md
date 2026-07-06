@@ -19,10 +19,20 @@ minikube start
 minikube addons enable ingress
 ```
 
+> **Apple Silicon (arm64) note:** the CI image on Docker Hub is built for
+> `linux/amd64`. On an arm64 host, build the image locally and load it into
+> minikube first (the Deployment uses `imagePullPolicy: IfNotPresent`):
+> ```bash
+> docker build -t magnolija/lmsproject:latest .
+> minikube image load magnolija/lmsproject:latest
+> ```
+
 ## 2. Apply everything
 ```bash
 kubectl apply -f k8s/
 ```
+If the Ingress is rejected the first time (nginx admission webhook still
+starting), just re-run the same `kubectl apply -f k8s/`.
 
 ## 3. Watch it come up
 ```bash

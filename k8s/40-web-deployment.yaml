@@ -22,7 +22,10 @@ spec:
       containers:
         - name: web
           image: magnolija/lmsproject:latest
-          imagePullPolicy: Always
+          # IfNotPresent so a locally-loaded image (e.g. an arm64 build on
+          # Apple Silicon via `minikube image load`) is used when present,
+          # and otherwise pulled from Docker Hub.
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8000
